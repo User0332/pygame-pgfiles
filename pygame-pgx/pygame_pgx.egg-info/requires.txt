@@ -1,0 +1,3 @@
+lxml
+pygame
+py-domapi

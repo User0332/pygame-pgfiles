@@ -1,0 +1,2 @@
+[console_scripts]
+pgx-run = pgx.run:run

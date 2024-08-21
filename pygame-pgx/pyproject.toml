@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools >= 61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pygame-pgx"
+version = "0.0.0"
+description = "Create PyGame Applications with XML and web-like programming patterns"
+readme = "README.md"
+authors = [{ name="Carl Furtado", email="carlzfurtado@gmail.com"}]
+license = { file="LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License"
+]
+
+keywords = ["pygame", "xml"]
+dependencies = [
+    "lxml",
+	"pygame",
+	"py-domapi"
+]
+
+requires-python = ">=3.10"
+
+[project.urls]
+Homepage = "https://github.com/User0332/pygame-pgx"
+
+[project.scripts]
+pgx-run = "pgx.run:run"

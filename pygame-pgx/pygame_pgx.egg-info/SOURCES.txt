@@ -1,0 +1,14 @@
+LICENSE
+pyproject.toml
+pgx/__init__.py
+pgx/__main__.py
+pgx/api.py
+pgx/exceptions.py
+pgx/parseval.py
+pgx/run.py
+pygame_pgx.egg-info/PKG-INFO
+pygame_pgx.egg-info/SOURCES.txt
+pygame_pgx.egg-info/dependency_links.txt
+pygame_pgx.egg-info/entry_points.txt
+pygame_pgx.egg-info/requires.txt
+pygame_pgx.egg-info/top_level.txt
