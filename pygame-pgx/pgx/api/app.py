@@ -7,7 +7,6 @@ class ExportableNamespace: pass
 
 class PGXApp:
 	def __init__(self, size: tuple[int, int], framerate: int):
-		self.id_to_elem: dict[str, PGXElement] = {}
 		self.size = size
 		self.exportable_namespace = ExportableNamespace()
 		self.global_namespace = { "app": self, "exports": self.exportable_namespace, "exportfn": self._exportfn, "export": self._export }
@@ -22,15 +21,15 @@ class PGXApp:
 	def _exportfn(self, func: Callable) -> None:
 		self._export(func.__name__, func)
 
-	def add_element(self, elem: PGXElement):
-		if elem.id == None:
-			elem.id = secrets.token_urlsafe(10)
-			if elem.id in self.id_to_elem: return self.add_element(elem)
-			
-		self.id_to_elem[elem.id] = elem
+	def get_element_by_id(self, elem_id: str, children: list[PGXElement] | None=None) -> PGXElement | None: # TODO: optimize
+		if children is None: children = self.root_elements
 
-	def get_element_by_id(self, elem_id: str):
-		return self.id_to_elem[elem_id]
+		for elem in children:
+			if elem.id == elem_id: return elem
+
+			return self.get_element_by_id(elem_id, elem.children)
+			
+		return None
 	
 	def update(self):
 		self.app_update()

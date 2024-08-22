@@ -1,4 +1,5 @@
 <!DOCTYPE pygame-pgx-module>
 
 <module size="100x100">
+	<surface type="rectangular" id="box" size="50x50" pos-center="50,50" color="red"/>
 </module>

@@ -16,4 +16,3 @@ def pgx_update():
 print(current_script)
 
 exportfn(pgx_update)
-export("main_py_ctx", current_script)

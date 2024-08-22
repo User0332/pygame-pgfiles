@@ -5,5 +5,6 @@ import pygame as pg
 class PGXElement:
 	surf: pg.Surface
 	rect: pg.Rect
-	id: str
+	id: str | None
+	type: str
 	children: list['PGXElement'] = field(default_factory=list)
