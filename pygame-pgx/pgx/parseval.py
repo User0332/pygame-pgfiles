@@ -1,9 +1,16 @@
 from domapi import Element
+from .exceptions import InvalidAttributeException
 
-def parse_size(element: Element, fallback: tuple[int, int]=(0, 0)) -> tuple[int, int]:
+def parse_size(element: Element, fallback: tuple[int, int] | None=None) -> tuple[int, int]:
 	try: return tuple(int(num) for num in element.getAttribute("size").split('x'))
-	except AttributeError: return fallback
+	except AttributeError:
+		if fallback: return fallback
 
-def parse_pos(pos: str, fallback: tuple[int, int]=(0, 0)) -> tuple[int, int]:
+		raise InvalidAttributeException(f"Size '{element.getAttribute('size')}' is not parseable!")
+
+def parse_pos(pos: str, fallback: tuple[int, int] | None=None) -> tuple[int, int]:
 	try: return tuple(int(num) for num in pos.split(','))
-	except AttributeError: return fallback
+	except AttributeError:
+		if fallback: return fallback
+
+		raise InvalidAttributeException(f"Position '{pos}' is not parseable!")

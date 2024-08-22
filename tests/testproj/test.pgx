@@ -1,0 +1,15 @@
+<!DOCTYPE pygame-pgx>
+
+<app size="500x500" framerate="60">
+	<surface type="wrapper" id="wrapper" size="400x400" pos-center="250,250">
+		<surface type="rectangular" id="rect" size="50x50" pos-midtop="200,0" color="red"/>
+		<img src="assets/testimg.png" pos-center="200,200" size="50x50"/>
+		<script src="scripts/main.py" schedule="onload"></script>
+
+		<script type="text/python">
+			print("Hello, World!")
+			print(current_script)	
+		</script>
+		<embed src="embeds/box.pgx"/>
+	</surface>
+</app>

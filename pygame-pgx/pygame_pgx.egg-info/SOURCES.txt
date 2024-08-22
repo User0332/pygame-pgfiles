@@ -2,10 +2,12 @@ LICENSE
 pyproject.toml
 pgx/__init__.py
 pgx/__main__.py
-pgx/api.py
 pgx/exceptions.py
 pgx/parseval.py
 pgx/run.py
+pgx/api/__init__.py
+pgx/api/app.py
+pgx/api/element.py
 pygame_pgx.egg-info/PKG-INFO
 pygame_pgx.egg-info/SOURCES.txt
 pygame_pgx.egg-info/dependency_links.txt

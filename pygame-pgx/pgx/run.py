@@ -1,12 +1,16 @@
-from sys import argv
-from .exceptions import ChildrenNotPermittedException, InvalidAppException
-from domapi import Element
+from pgx.api.scriptctx import ScriptContext
+from .exceptions import ChildrenNotPermittedException, InvalidAppException, InvalidAttributeException
 from .parseval import parse_size, parse_pos
-from .api import PGXApp
+from .api import PGXApp, PGXElement
+from domapi import Element
+import os
+import textwrap
 import pygame as pg
 import lxml.etree as etree
 
 def run(filename: str):
+	os.chdir(os.path.dirname(filename))
+	
 	document: etree._ElementTree = etree.parse(filename)
 
 	doctype: str = document.docinfo.internalDTD.name
@@ -29,23 +33,27 @@ def run(filename: str):
 		raise InvalidAppException(
 			"No size specified on <app>"
 		)
-
+	
 	pg.init()
 
-	app = PGXApp(parse_size(doc))
+	try: framerate = int(doc.getAttribute("framerate"))
+	except TypeError: framerate = 60
+	except ValueError: raise InvalidAttributeException("Invalid value for framerate (must be int)")
+
+	app = PGXApp(parse_size(doc), framerate)
+	deferred_scripts: list[tuple[str, ScriptContext]] = []
 
 	screen = pg.display.set_mode(app.size)
 
-	def recurse_pgx(parent: Element) -> tuple[list[pg.Surface], list[pg.Rect], tuple[int, int]]:
-		surfs: list[pg.Surface] = []
-		rects: list[pg.Rect] = []
+	def recurse_pgx(parent: Element) -> tuple[list[PGXElement], tuple[int, int]]:
+		elements: list[PGXElement] = []
 
 		fallback_x = 0
 		fallback_y = 0
 
 		for elem in parent.children:
 			if elem._root.tag == "surface":
-				*children, fallback_size = recurse_pgx(elem)
+				children, fallback_size = recurse_pgx(elem)
 				
 				size = parse_size(elem, fallback_size)
 
@@ -53,18 +61,17 @@ def run(filename: str):
 				fallback_y+=size[1]
 
 				surf = pg.Surface(size)
-				app._add_element(elem.getAttribute("id"), surf)
+				rect = surf.get_rect(**{ attr.removeprefix("pos-"): parse_pos(elem.getAttribute(attr)) for attr in elem.attributes._map if attr.startswith("pos-") })
 				surf.fill(elem.getAttribute("color") or "black")
 
-				for (child, rect) in zip(*children):
-					surf.blit(child, rect)
+				pgelem = PGXElement(surf, rect, elem.getAttribute("id"), children)
 
-				surfs.append(surf)
-				rects.append(surf.get_rect(**{ attr.removeprefix("pos-"): parse_pos(elem.getAttribute(attr)) for attr in elem.attributes._map if attr.startswith("pos-") })) # TODO: get an actual pos
+				app.add_element(pgelem)
+				elements.append(pgelem)
 			if elem._root.tag == "img":
-				*children, _ = recurse_pgx(elem)
+				children, _ = recurse_pgx(elem)
 
-				if children[0]: raise ChildrenNotPermittedException(
+				if children: raise ChildrenNotPermittedException(
 					"<img> elements may not have children"
 				)
 
@@ -76,23 +83,67 @@ def run(filename: str):
 				fallback_x+=size[0] # need to fix, this doesnt account for pos at all
 				fallback_y+=size[1]
 
-				surf = pg.transform.scale(surf, size)
+				scaled = pg.transform.scale(surf, size)
 
-				surfs.append(surf)
-				rects.append(surf.get_rect(**{ attr.removeprefix("pos-"): parse_pos(elem.getAttribute(attr)) for attr in elem.attributes._map if attr.startswith("pos-") })) # TODO: get an actual pos
+				rect = scaled.get_rect(**{ attr.removeprefix("pos-"): parse_pos(elem.getAttribute(attr)) for attr in elem.attributes._map if attr.startswith("pos-") })
 
-		return surfs, rects, (fallback_x, fallback_y)
+				pgelem = PGXElement(scaled, rect, elem.getAttribute("id"))
 
-	*app_surfs, _ = recurse_pgx(doc)
+				app.add_element(pgelem)
+				elements.append(pgelem)
+			if elem._root.tag == "script":
+				children, _ = recurse_pgx(elem)
+				
+				if children: raise ChildrenNotPermittedException(
+					"<script> elements may not have children"
+				)
 
-	for (surf, rect) in zip(*app_surfs):
-		screen.blit(surf, rect)
+				src = elem.getAttribute("src")
+				script_type = elem.getAttribute("type") or "text/python"
+
+				if script_type != "text/python":
+					raise InvalidAppException("script/python is currently the only supported script type!")
+
+				if not src:
+					script_text = textwrap.dedent(''.join(elem._root.itertext()))
+					ctx = ScriptContext(script_type, "<inline>", script_text, app.global_namespace)
+				else:
+					script_text = open(src, 'r').read()
+					ctx = ScriptContext(script_type, os.path.relpath(src).replace('\\', '/'), script_text, app.global_namespace)
+
+
+				schedule = elem.getAttribute("schedule") or "instant"
+
+				if schedule == "onload":
+					ctx.execution_scheduling = "onload"
+
+					deferred_scripts.append(
+						(script_text, ctx)
+					)
+				elif schedule == "instant":
+					exec(
+						script_text,
+						{ **app.global_namespace, "current_script": ctx },
+					)
+				else: raise InvalidAttributeException("Script scheduling must either be 'instant' or 'onload'")
+
+		return elements, (fallback_x, fallback_y)
+
+	app.root_elements, _ = recurse_pgx(doc)
+
+	for (script_text, context) in deferred_scripts:
+		exec(script_text, { **app.global_namespace, "current_script": context })	
+
+	print(vars(app.global_namespace["exports"]))
+	app.app_update = getattr(app.global_namespace["exports"], "pgx_update", lambda: None)
 
 	while 1:
-		for event in pg.event.get():
+		for event in pg.event.get(): # TODO: have a separate event thread that calls event handlers
 			if event.type == pg.QUIT:
 				pg.quit()
 				exit(0)
+
+		app.render_to(screen)
 
 		app.update()
 				

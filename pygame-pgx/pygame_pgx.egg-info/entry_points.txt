@@ -1,2 +1,2 @@
 [console_scripts]
-pgx-run = pgx.run:run
+pgx-start = pgx.__main__:main
