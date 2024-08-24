@@ -7,6 +7,12 @@ from .exceptions import ChildrenNotPermittedException, InvalidAppException, Inva
 from .api import PGXApp, PGXElement, ScriptContext
 from .parseval import parse_pos, parse_size
 
+def get_attrs_dict(elem: Element):
+	return {
+		name: attr.value
+		for name, attr in elem.attributes._map.items()
+	}
+
 def recurse_pgx(app: PGXApp, deferred_scripts: list[tuple[str, ScriptContext]], parent: Element) -> tuple[list[PGXElement], tuple[int, int]]:
 	elements: list[PGXElement] = []
 
@@ -19,17 +25,17 @@ def recurse_pgx(app: PGXApp, deferred_scripts: list[tuple[str, ScriptContext]], 
 			
 			size = parse_size(elem.getAttribute("size"), fallback_size)
 
-			fallback_x+=size[0]
-			fallback_y+=size[1]
-
 			surf = pg.Surface(size)
 			rect = surf.get_rect(**{ attr.removeprefix("pos-"): parse_pos(elem.getAttribute(attr)) for attr in elem.attributes._map if attr.startswith("pos-") })
 			surf.fill(elem.getAttribute("color") or "black")
 
-			pgelem = PGXElement(surf, rect, elem.getAttribute("id"), "surface", children)
+			pgelem = PGXElement(surf, rect, elem.getAttribute("id"), "surface", get_attrs_dict(elem), children)
 
 			elements.append(pgelem)
-		if elem._root.tag == "img":
+
+			fallback_x+=rect.left+size[0]
+			fallback_y+=rect.top+size[1]
+		elif elem._root.tag == "img":
 			children, _ = recurse_pgx(app, deferred_scripts, elem)
 
 			if children: raise ChildrenNotPermittedException(
@@ -39,19 +45,19 @@ def recurse_pgx(app: PGXApp, deferred_scripts: list[tuple[str, ScriptContext]], 
 			src = elem.getAttribute("src")
 			surf = pg.image.load(src)
 
+
 			size = parse_size(elem.getAttribute("size"), surf.get_size())
 
-			fallback_x+=size[0] # need to fix, this doesnt account for pos at all
-			fallback_y+=size[1]
-
 			scaled = pg.transform.scale(surf, size)
-
 			rect = scaled.get_rect(**{ attr.removeprefix("pos-"): parse_pos(elem.getAttribute(attr)) for attr in elem.attributes._map if attr.startswith("pos-") })
 
-			pgelem = PGXElement(scaled, rect, elem.getAttribute("id"), "img")
+			pgelem = PGXElement(scaled, rect, elem.getAttribute("id"), "img", get_attrs_dict(elem))
 
 			elements.append(pgelem)
-		if elem._root.tag == "embed":
+
+			fallback_x+=rect.left+size[0]
+			fallback_y+=rect.top+size[1]
+		elif elem._root.tag == "embed":
 			children, _ = recurse_pgx(app, deferred_scripts, elem)
 
 			if children: raise ChildrenNotPermittedException(
@@ -60,10 +66,13 @@ def recurse_pgx(app: PGXApp, deferred_scripts: list[tuple[str, ScriptContext]], 
 
 			src = elem.getAttribute("src")
 
-			elements.append(
-				parse_module(app, deferred_scripts, src, elem.getAttribute("id"), { attr.removeprefix("pos-"): parse_pos(elem.getAttribute(attr)) for attr in elem.attributes._map if attr.startswith("pos-") })
-			)
-		if elem._root.tag == "script":
+			pgelem =  parse_module(app, deferred_scripts, src, elem.getAttribute("id"), { attr.removeprefix("pos-"): parse_pos(elem.getAttribute(attr)) for attr in elem.attributes._map if attr.startswith("pos-") })
+
+			elements.append(pgelem)
+
+			fallback_x+=pgelem.rect.left+pgelem.size[0]
+			fallback_y+=pgelem.rect.top+pgelem.size[1]	
+		elif elem._root.tag == "script":
 			children, _ = recurse_pgx(app, deferred_scripts, elem)
 			
 			if children: raise ChildrenNotPermittedException(
@@ -136,7 +145,7 @@ def parse_module(app: PGXApp, deferred_scripts: list[tuple[str, ScriptContext]],
 	
 	elem = PGXElement(
 		surf, rect, 
-		_id, "module"
+		_id, "module", get_attrs_dict(doc)
 	)
 
 	elem.children, _ = recurse_pgx(app, deferred_scripts, doc)

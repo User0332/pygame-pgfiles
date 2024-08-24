@@ -6,5 +6,10 @@ class PGXElement:
 	surf: pg.Surface
 	rect: pg.Rect
 	id: str | None
-	type: str
+	tag: str
+	attributes: dict[str, str]
 	children: list['PGXElement'] = field(default_factory=list)
+
+	@property
+	def size(self) -> tuple[int, int]:
+		return self.surf.get_size()

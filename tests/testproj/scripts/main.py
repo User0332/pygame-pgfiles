@@ -15,4 +15,6 @@ def pgx_update():
 
 print(current_script)
 
+print(app)
+
 exportfn(pgx_update)

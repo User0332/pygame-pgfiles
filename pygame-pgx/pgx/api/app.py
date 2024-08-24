@@ -1,3 +1,4 @@
+import pprint
 from .element import PGXElement
 from typing import Any, Callable
 import pygame as pg
@@ -46,3 +47,6 @@ class PGXApp:
 			self.render_to(blit_to, element.children)
 			
 			screen.blit(blit_to, element.rect)
+
+	def __repr__(self) -> str:
+		return pprint.pformat(self.root_elements)
